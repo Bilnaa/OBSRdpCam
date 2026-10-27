@@ -1,0 +1,8 @@
+<Project>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!-- sources are UTF-8 (non-ASCII characters in strings and comments) -->
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

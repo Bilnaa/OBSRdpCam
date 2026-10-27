@@ -1,0 +1,24 @@
+# build output
+x64/
+Debug/
+Release/
+dist/
+*.obj
+*.pdb
+*.ipdb
+*.iobj
+*.tlog
+*.log
+
+# restored by build.ps1
+src/packages/
+Generated Files/
+
+# Visual Studio
+.vs/
+*.user
+*.aps
+
+# never commit personal RDP files (they contain host names, user names...)
+*.rdp
+*.rdp.bak
