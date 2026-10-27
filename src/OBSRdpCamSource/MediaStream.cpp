@@ -76,6 +76,7 @@ HRESULT MediaStream::Start(IMFMediaType* type)
 	}
 
 	RETURN_IF_FAILED(_generator.Initialize(_width, _height));
+	_nextSampleTime = 0;
 
 	RETURN_IF_FAILED(_allocator->InitializeSampleAllocator(10, type));
 	RETURN_IF_FAILED(_queue->QueueEventParamVar(MEStreamStarted, GUID_NULL, S_OK, nullptr));
@@ -198,12 +199,43 @@ STDMETHODIMP MediaStream::GetStreamDescriptor(IMFStreamDescriptor** ppStreamDesc
 STDMETHODIMP MediaStream::RequestSample(IUnknown* pToken)
 {
 	//WINTRACE(L"MediaStream::RequestSample pToken:%p", pToken);
+
+	// deliver at the camera's frame rate like a real device: clients such as the RDP camera redirection
+	// request samples back to back and would otherwise get (and send) hundreds of frames per second
+	auto now = MFGetSystemTime();
+	if (!_nextSampleTime || now - _nextSampleTime > (LONGLONG)_interval * 4)
+	{
+		_nextSampleTime = now;
+	}
+
+	if (_nextSampleTime > now)
+	{
+		if (!_timer)
+		{
+			_timer.reset(CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS));
+		}
+
+		LARGE_INTEGER due;
+		due.QuadPart = -(_nextSampleTime - now);
+		if (_timer && SetWaitableTimer(_timer.get(), &due, 0, nullptr, nullptr, FALSE))
+		{
+			WaitForSingleObject(_timer.get(), 1000);
+		}
+		else
+		{
+			Sleep((DWORD)((_nextSampleTime - now) / 10000));
+		}
+	}
+
+	auto sampleTime = _nextSampleTime;
+	_nextSampleTime += _interval;
+
 	winrt::slim_lock_guard lock(_lock);
 	RETURN_HR_IF(MF_E_SHUTDOWN, !_allocator || !_queue);
 
 	wil::com_ptr_nothrow<IMFSample> sample;
 	RETURN_IF_FAILED(_allocator->AllocateSample(&sample));
-	RETURN_IF_FAILED(sample->SetSampleTime(MFGetSystemTime()));
+	RETURN_IF_FAILED(sample->SetSampleTime(sampleTime));
 	RETURN_IF_FAILED(sample->SetSampleDuration(_interval));
 
 	// copy latest OBS frame

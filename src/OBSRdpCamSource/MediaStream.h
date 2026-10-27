@@ -29,6 +29,7 @@ public:
 		_width(0),
 		_height(0),
 		_interval(0),
+		_nextSampleTime(0),
 		_state(MF_STREAM_STATE_STOPPED),
 		_format(GUID_NULL)
 	{
@@ -57,6 +58,8 @@ private:
 	UINT _width;
 	UINT _height;
 	ULONGLONG _interval;
+	LONGLONG _nextSampleTime;
+	wil::unique_handle _timer;
 	GUID _format;
 	wil::com_ptr_nothrow<IMFStreamDescriptor> _descriptor;
 	wil::com_ptr_nothrow<IMFMediaEventQueue> _queue;
